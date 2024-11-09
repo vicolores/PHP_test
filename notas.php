@@ -2,7 +2,7 @@
 require 'conexion.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $conexion = obtenerConexion();
+    $pdo = obtenerConexion();
 
     // Obtener los datos del formulario
     $dni = $_POST['dni'] ?? '';
@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Alta de una nueva nota
     if (isset($_POST['nueva'])) {
         if ($dni && $nombre && $grupo && $fecha_hora && $asignatura && $nota !== null) {
-            $stmt = $conexion->prepare("INSERT INTO registros (dni, nombre, grupo, fecha_hora, asignatura, nota) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO notas (dni, nombre, grupo, fecha_hora, asignatura, nota) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->bind_param("sssssd", $dni, $nombre, $grupo, $fecha_hora, $asignatura, $nota);
             try {
                 if ($stmt->execute()) {
@@ -35,14 +35,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Calcular la nota media
     if (isset($_POST['media'])) {
         if ($dni && $asignatura) {
-            $stmt = $conexion->prepare("SELECT AVG(nota) as nota_media FROM notas WHERE dni = ? AND asignatura = ?");
+            $stmt = $pdo->prepare("SELECT AVG(nota) as nota_media FROM notas WHERE dni = ? AND asignatura = ?");
             $stmt->bind_param("ss", $dni, $asignatura);
             $stmt->execute();
-            $resultado = $stmt->get_result()->fetch_assoc();
-            if ($resultado && $resultado['nota_media'] !== null) {
-                echo "La nota media de $nombre en $asignatura es: " . $resultado['nota_media'];
+            $resultado = $stmt->get_result();
+            if ($resultado && $fila = $resultado->fetch_assoc()) {
+                if ($fila['nota_media'] !== null) {
+                    echo "La nota media de $nombre en $asignatura es: " . $fila['nota_media'];
+                } else {
+                    echo "No se encontraron notas para el DNI y asignatura proporcionados.";
+                }
             } else {
-                echo "No se encontraron registros para el DNI y asignatura proporcionados.";
+                echo "No se encontraron resultados.";
             }
             $stmt->close();
         } else {
@@ -53,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Mostrar todos los usuarios
     if (isset($_POST['mostrar'])) {
         $sql = "SELECT DISTINCT dni, nombre, grupo FROM notas";
-        $resultado = $conexion->query($sql);
+        $resultado = $pdo->query($sql);
         $usuarios = $resultado->fetch_all(MYSQLI_ASSOC);
         
         if ($usuarios) {
@@ -77,6 +81,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    $conexion->close();
+    $pdo->close();
 }
 ?>
